@@ -237,7 +237,7 @@ func extractKeyauth(mailpart *message.Entity) (string, *acme.ProblemDetails) {
 		digest = strings.ReplaceAll(digest, "\r\n", "")
 		return digest, nil
 	}
-	return "", acme.UnauthorizedProblem(fmt.Sprintf("ACME response header not found"))
+	return "", acme.UnauthorizedProblem(fmt.Sprintf("ACME response header not found from mail %s", mailpart.Header.Get("Subject")))
 }
 
 func (va VAImpl) ValidateChallenge(ident acme.Identifier, chal *core.Challenge, acct *core.Account) {
@@ -404,7 +404,7 @@ func (va VAImpl) validateDNS01(task *vaTask) *core.ValidationRecord {
 	}
 
 	if len(txts) == 0 {
-		msg := fmt.Sprintf("No TXT records found for DNS challenge")
+		msg := fmt.Sprintf("No TXT records found for DNS challenge for %s", challengeSubdomain)
 		result.Error = acme.UnauthorizedProblem(msg)
 		return result
 	}
@@ -421,7 +421,7 @@ func (va VAImpl) validateDNS01(task *vaTask) *core.ValidationRecord {
 		}
 	}
 
-	msg := fmt.Sprintf("Correct value not found for DNS challenge")
+	msg := fmt.Sprintf("Correct value not found for DNS challenge for %s", challengeSubdomain)
 	result.Error = acme.UnauthorizedProblem(msg)
 	return result
 }
@@ -479,14 +479,15 @@ func (va VAImpl) validateMailReply00(task *vaTask) *core.ValidationRecord {
 	}
 	//return if there was no right mail
 	if responseMail == nil {
-		result.Error = acme.UnauthorizedProblem(fmt.Sprintf("there wasn't ACME-response mail for this challenge in inbox"))
+		result.Error = acme.UnauthorizedProblem("there wasn't ACME-response mail for this challenge in inbox")
 		return result
 	}
 	//loop until there is no next header, emultate do-while to not skip first header as calling Header.Next() advances to next header.
 	hf := responseMail.Header.Fields()
 	for hf.Next() {
-		if strings.HasPrefix(hf.Key(), "List-") {
-			result.Error = acme.UnauthorizedProblem(fmt.Sprintf("ACME-response email can't be from mailling list. Found [%s] header", hf.Key))
+		currentheader := hf.Key()
+		if strings.HasPrefix(currentheader, "List-") {
+			result.Error = acme.UnauthorizedProblem(fmt.Sprintf("ACME-response email can't be from mailling list. Found [%s] header", currentheader))
 			return result
 		}
 	}

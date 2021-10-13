@@ -30,7 +30,6 @@ type config struct {
 		ExternalAccountMACKeys         map[string]string
 		// Configure policies to deny certain domains
 		DomainBlocklist []string
-<<<<<<< HEAD
 		// if this is false mail related remote clients are disabled
 		Emailenabed bool
 		Smtpserver  struct {
@@ -46,10 +45,8 @@ type config struct {
 			Password   string
 			Verifydkim bool
 		}
-=======
 
 		CertificateValidityPeriod uint
->>>>>>> mybranch/master
 	}
 }
 
