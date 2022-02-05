@@ -451,7 +451,7 @@ func (va VAImpl) validateMailReply00(task *vaTask) *core.ValidationRecord {
 	//now extract key in string
 	for _, mail := range mails {
 		from := mail.Header.Get("From")
-		if !strings.Contains(from, "<"+challengeAddress+">") {
+		if (from != challengeAddress) && !strings.Contains(from, "<"+challengeAddress+">") {
 			va.log.Println("Wrong sender:" + from)
 			continue
 		}
@@ -504,8 +504,9 @@ func (va VAImpl) validateMailReply00(task *vaTask) *core.ValidationRecord {
 				} else if innererr != nil {
 					continue
 				}
-				extractedKeyAuth, innererr = extractKeyauth(p)
-				if innererr == nil {
+				var innererr2 *acme.ProblemDetails
+				extractedKeyAuth, innererr2 = extractKeyauth(p)
+				if innererr2 != nil {
 					break
 				}
 			}
@@ -528,7 +529,7 @@ func (va VAImpl) validateMailReply00(task *vaTask) *core.ValidationRecord {
 		return result
 	}
 
-	msg := fmt.Sprintf("Correct value not found for Email challenge")
+	msg := fmt.Sprintf("Correct value not found for Email challenge %s", challengeAddress)
 	result.Error = acme.UnauthorizedProblem(msg)
 	return result
 }
