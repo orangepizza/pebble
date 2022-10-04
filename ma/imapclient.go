@@ -2,6 +2,7 @@ package ma
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -13,7 +14,7 @@ import (
 	"github.com/letsencrypt/pebble/acme"
 )
 
-//those are for TLS setting for servers.
+// those are for TLS setting for servers.
 const (
 	None     = iota
 	Explict  //starttls
@@ -49,7 +50,7 @@ func NewFetcher(log *log.Logger, address string, username string, password strin
 	}
 	c.istls = Implicit
 	imapclient, err := client.DialTLS(address, nil)
-	if err != nil {
+	if _, ok := err.(tls.RecordHeaderError); ok {
 		imapclient, err = client.Dial(address)
 		if err != nil {
 			return nil, err
@@ -59,6 +60,8 @@ func NewFetcher(log *log.Logger, address string, username string, password strin
 			imapclient.StartTLS(nil)
 			c.istls = Explict
 		}
+	} else if err != nil {
+		panic(err)
 	}
 	// connected so
 	c.clt = imapclient
@@ -79,7 +82,7 @@ func NewFetcher(log *log.Logger, address string, username string, password strin
 	return nil, err
 }
 
-//Fetch look for imap message from mailserver, verify dkim sig if configed to, and return raw mail as slice of []byte
+// Fetch look for imap message from mailserver, verify dkim sig if configed to, and return raw mail as slice of []byte
 func (c *MailFetcher) Fetch(address string, tokenPart1 string) ([][]byte, *acme.ProblemDetails) {
 	c.log.Printf("enter ma %s, looking que %p", address, c.tasks)
 	f := make(chan *imap.Message)

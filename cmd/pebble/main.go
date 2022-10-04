@@ -96,6 +96,9 @@ func main() {
 			panic("Failed to connect to remote Imap server")
 		}
 		smtpsender = ma.NewSender(logger, c.Pebble.Smtpserver.Address, c.Pebble.Smtpserver.Fromaddr, c.Pebble.Smtpserver.Username, c.Pebble.Smtpserver.Password)
+		if smtpsender == nil {
+			panic("cannot set sender")
+		}
 	} else {
 		logger.Println("Email support is disabled")
 	}
