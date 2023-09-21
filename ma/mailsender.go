@@ -53,7 +53,7 @@ func (s *SenderImpl) CraftMailforChallenge(ident acme.Identifier, OutOfBandToken
 		log.Fatal(err)
 	}
 	//fill body of the message
-	bodytowrite := fmt.Sprintf("Pebble RFC8823 challenge mail: for testing sent %s", time.Now().Truncate(time.Second))
+	bodytowrite := fmt.Sprintf("Pebble RFC8823 challenge mail: for testing sent %s \r\n", time.Now().Truncate(time.Second))
 	io.WriteString(w, bodytowrite)
 	w.Close()
 	return b, nil
@@ -70,6 +70,8 @@ func (s *SenderImpl) processTasks() {
 		err = smtp.SendMail(s.smtpserver, s.auth, s.Fromaddr, []string{task.Identifier.Value}, &m)
 		if err != nil {
 			s.log.Println(err)
+		} else {
+			s.log.Println("mail sent to:", task.Identifier.Value)
 		}
 	}
 }
