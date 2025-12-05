@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -321,6 +322,8 @@ func (va VAImpl) performValidation(task *vaTask, results chan<- *core.Validation
 		results <- va.validateDNS01(task)
 	case acme.ChallengeDNSAccount01:
 		results <- va.validateDNSAccount01(task)
+	case acme.ChallengeDNSPersist01:
+		results <- va.validateDNSPersist01(task)
 	default:
 		va.log.Printf("Error: performValidation(): Invalid challenge type: %q", task.Challenge.Type)
 	}
@@ -399,6 +402,79 @@ func (va VAImpl) validateDNSAccount01(task *vaTask) *core.ValidationRecord {
 	}
 
 	msg := "Correct value not found for DNS-ACCOUNT-01 challenge"
+	result.Error = acme.UnauthorizedProblem(msg)
+	return result
+}
+
+func (va VAImpl) validateDNSPersist01(task *vaTask) *core.ValidationRecord {
+	challengeSubdomain := fmt.Sprintf("_validation-persist.%s", task.Identifier.Value)
+
+	result := &core.ValidationRecord{
+		URL:         challengeSubdomain,
+		ValidatedAt: time.Now(),
+	}
+
+	va.log.Printf("doing dns-persist-01, expected record \"%s; accounturi=%s;\"", acme.CAAIdentities[0], task.AccountURL)
+
+	txts, err := va.getTXTEntry(challengeSubdomain)
+	if err != nil {
+		result.Error = acme.UnauthorizedProblem(fmt.Sprintf("Error retrieving TXT records for DNS-ACCOUNT-01 challenge (%q)", err))
+		return result
+	}
+
+	if len(txts) == 0 {
+		msg := "No TXT records found for DNS-ACCOUNT-01 challenge"
+		result.Error = acme.UnauthorizedProblem(msg)
+		return result
+	}
+
+	for _, element := range txts {
+		// persist record format is "authority.example; accounturi=https://authority.example/acct/123; persistUntil=1782424856"
+		// should be ignored as unrelated txt but as testing return dedicated error here.
+		if strings.HasPrefix(element, "accounturi") {
+			result.Error = acme.MalformedProblem("persistent dns record needs CAA authrity identifier, please see CA/B BR 3.2.2.4.22")
+			return result
+		}
+		parts := strings.Split(element, ";")
+		var CAid, accounturi string
+		var persistUntil time.Time
+		for i, part := range parts {
+			part = strings.TrimSpace(part)
+			if i == 0 {
+				CAid = part
+				continue
+			}
+			if strings.HasPrefix(part, "accounturi=") {
+				accounturi = strings.TrimPrefix(part, "accounturi=")
+			}
+			if strings.HasPrefix(part, "persistUntil=") {
+				persistUntilstr := strings.TrimPrefix(part, "persistUntil=")
+				persistUntilint, err := strconv.ParseInt(persistUntilstr, 10, 64)
+				if err != nil {
+					va.log.Printf("persist DCV record had invalid persistUntil %s", err)
+				}
+				persistUntil = time.Unix(persistUntilint, 0) // it's 0 if errored
+			}
+		}
+		// ignore any record that points to wrong CA
+		if !slices.Contains(acme.CAAIdentities, CAid) {
+			va.log.Printf("%s, is not for us, passing", CAid)
+			continue
+		}
+		va.log.Printf("persistent DCV record account %s for CA %s found", accounturi, CAid)
+		if accounturi != task.AccountURL {
+			va.log.Printf("challenge is from account %s, but got persistent record for account %s", task.AccountURL, accounturi)
+			continue
+		}
+		if time.Now().After(persistUntil) {
+			va.log.Printf("persistnace DCV record for account %s expired at %s", accounturi, persistUntil.String())
+			continue
+		}
+		// found valid record
+		return result
+	}
+
+	msg := "Correct value not found for DNS-PERSIST-01 challenge"
 	result.Error = acme.UnauthorizedProblem(msg)
 	return result
 }

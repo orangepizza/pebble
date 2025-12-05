@@ -19,11 +19,16 @@ const (
 	ChallengeTLSALPN01    = "tls-alpn-01"
 	ChallengeDNS01        = "dns-01"
 	ChallengeDNSAccount01 = "dns-account-01"
+	ChallengeDNSPersist01 = "dns-persist-01"
 
 	HTTP01BaseURL = ".well-known/acme-challenge/"
 
 	ACMETLS1Protocol = "acme-tls/1"
 )
+
+// some random names given to pebble's CAA identifier: pebble doesn't check CAA
+// but we need identifier for dns-persist-01 challenge. rfc8555 exposes them in directory meta
+var CAAIdentities = []string{"pebble.test", "oldname.com", "name.bought"}
 
 type Identifier struct {
 	Type  string `json:"type"`

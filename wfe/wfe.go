@@ -607,6 +607,7 @@ func (wfe *WebFrontEndImpl) relativeDirectory(request *http.Request, directory m
 		"termsOfService":          ToSURL,
 		"externalAccountRequired": wfe.requireEAB,
 		"profiles":                wfe.ca.GetProfiles(),
+		"caaIdentities":           acme.CAAIdentities,
 	}
 
 	directoryJSON, err := marshalIndent(relativeDir)
@@ -1627,14 +1628,14 @@ func (wfe *WebFrontEndImpl) makeChallenges(authz *core.Authorization, request *h
 	if strings.HasPrefix(authz.Identifier.Value, "*.") {
 		// Authorizations for a wildcard identifier get DNS-based challenges to
 		// match Boulder/Let's Encrypt wildcard issuance policy
-		enabledChallenges = []string{acme.ChallengeDNS01, acme.ChallengeDNSAccount01}
+		enabledChallenges = []string{acme.ChallengeDNS01, acme.ChallengeDNSAccount01, acme.ChallengeDNSPersist01}
 	} else {
 		// IP addresses get HTTP-01 and TLS-ALPN challenges
 		if authz.Identifier.Type == acme.IdentifierIP {
 			enabledChallenges = []string{acme.ChallengeHTTP01, acme.ChallengeTLSALPN01}
 		} else {
 			// Non-wildcard, non-IP identifier authorizations get all of the enabled challenge types
-			enabledChallenges = []string{acme.ChallengeHTTP01, acme.ChallengeTLSALPN01, acme.ChallengeDNS01, acme.ChallengeDNSAccount01}
+			enabledChallenges = []string{acme.ChallengeHTTP01, acme.ChallengeTLSALPN01, acme.ChallengeDNS01, acme.ChallengeDNSAccount01, acme.ChallengeDNSPersist01}
 		}
 	}
 	for _, chalType := range enabledChallenges {
